@@ -1,0 +1,9 @@
+postgres:
+  "host": "localhost"
+  "port": 5432
+  "username": "postgres"
+  "password": "password"
+  "database": "order_system"
+
+order_payment_callback_url: "http://0.0.0.0:8088/order/payment_callback"
+payment_message_queue_url: "http://0.0.0.0:8089/payment/new_payment"
