@@ -1,10 +1,14 @@
 # Order_system
 An simple Order system based on Golang.
-Make sure docker is installed and running on your machine.
-By default app will expose port **8088** and **8089**, and postgres port is **5433**.
+
+## Before start
+> - Make sure Golang(1.21+) is installed.
+> - Make sure docker is installed and running on your machine.
+> - By default app will expose port **8088** and **8089**, and postgres port is **5433**.
 
 ## Download Repository
-Download this repo to you local machine, open your terminal and navigate to **order_system** directory
+Download this repo to you local machine, open your terminal and navigate to **order_system** directory.
+> All following commands must be executed in **order_system** directory.
 
 ## Build image
 Run following commands to build Order and Payment images:
@@ -25,7 +29,13 @@ Run following commands to start the APIs, it will start 3 containers, including 
 docker compose up -d
 ```
 
-## Payload for testing
+## Unit test
+To run unit test cases, Please run following command
+```
+go test ./...
+```
+
+## Payload for API testing
 - create_customer
 ```
 curl --location 'http://0.0.0.0:8088/order/create_customer' \
