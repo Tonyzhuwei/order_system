@@ -123,3 +123,13 @@ curl --location 'http://0.0.0.0:8089/payment/new_payment' \
     "state": 1
 }'
 ```
+
+## Missing Parts
+- Support more abnormal scenario for Order State Machine.
+- Data persistence and horizontal scale up for Message Queue.
+- Error handling and logging for better fault tolerance.
+- Implementing retry mechanisms for failed payment requests.
+- Authentication and authorization mechanisms for API endpoints.
+- Monitoring and alerting for system health checks.
+- Graceful shutdown
+- CI/CD pipeline
