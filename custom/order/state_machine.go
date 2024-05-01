@@ -111,13 +111,13 @@ func (ctx *HandlerContext) fulfillOrder(order *model.Order) {
 }
 
 // CallPaymentApi method for Notifying payment API to start a new payment
-func CallPaymentApi(order *model.Order) error {
+func (ctx *HandlerContext) CallPaymentApi(order *model.Order) error {
 	reqBody, err := json.Marshal(*order)
 	if err != nil {
 		rlog.Error(err)
 		return err
 	}
-	r, err := http.NewRequest(http.MethodPost, "http://0.0.0.0:8089/payment/new_payment", bytes.NewBuffer(reqBody))
+	r, err := http.NewRequest(http.MethodPost, ctx.PaymentMQUrl, bytes.NewBuffer(reqBody))
 	if err != nil {
 		rlog.Error(err)
 		return err

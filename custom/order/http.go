@@ -71,6 +71,12 @@ func (ctx *HandlerContext) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		State:      ORDER_STATE_CREATED,
 	}
 	errDb := ctx.db.Transaction(func(tx *dal.Query) error {
+		// Check customer existence
+		customer, errCustomer := tx.Customer.Where(tx.Customer.ID.Eq(req.CustomerId)).First()
+		if errCustomer != nil || customer == nil {
+			return errors.New(constants.CUSTOMER_NOT_FOUND)
+		}
+
 		// Update Product
 		result, errTx := tx.Product.Where(tx.Product.ID.Eq(req.ProductId), tx.Product.IsAvailable.Is(true)).Update(tx.Product.IsAvailable, false)
 		if errTx != nil || result.RowsAffected == 0 {
@@ -161,6 +167,7 @@ func (ctx *HandlerContext) PaymentCallBack(w http.ResponseWriter, r *http.Reques
 	// Validate order state
 	if orderInfo.State != ORDER_STATE_AWAITPAYMENT {
 		errInfo := "Order is not AWAIT PAYMENT"
+		rlog.Error(errInfo)
 		http.Error(w, errInfo, http.StatusBadRequest)
 		return
 	}

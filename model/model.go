@@ -5,7 +5,7 @@ import (
 )
 
 var ALL_ORDER_TABLES []interface{} = []interface{}{
-	Customer{}, Product{}, Order{},
+	Customer{}, Product{}, Order{}, Payment{},
 }
 
 type Customer struct {

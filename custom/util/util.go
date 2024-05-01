@@ -28,6 +28,8 @@ type DbConfig struct {
 }
 
 type ServerConfig struct {
+	Order_port                 int      `yaml:"order_port"`
+	Payment_port               int      `yaml:"payment_port"`
 	Postgres                   DbConfig `yaml:"postgres"`
 	Order_payment_callback_url string   `yaml:"order_payment_callback_url"`
 	Payment_message_queue_url  string   `yaml:"payment_message_queue_url"`

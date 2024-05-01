@@ -26,6 +26,12 @@ var (
 		State:      ORDER_STATE_CREATED,
 		FailReason: nil,
 	}
+	testCustomer = model.Customer{
+		ID:      1,
+		Name:    "Test Customer",
+		Email:   util.GetStringPtr("user@mail.com"),
+		Address: util.GetStringPtr("this is a test address"),
+	}
 )
 
 func mockPayment(order *model.Order) error {
@@ -169,12 +175,15 @@ func TestCreatOrderSuccess(t *testing.T) {
 	handlerCtx := HandlerContext{}
 	handlerCtx.InitialHandlerContext(dal.Q, mockPayment, "")
 
+	selectCustomerSQL := `^SELECT \* FROM \"customers\" WHERE \"customers\"\.\"id\" \= .* .* LIMIT .*`
 	updateProductSQL := "UPDATE \"products\" SET .+"
 	creatSQL := "INSERT INTO \"orders\" .+ VALUES .+"
-	newRows, _ := util.ObjectToRows(testOrder)
+	orderRows, _ := util.ObjectToRows(testOrder)
+	customerRows, _ := util.ObjectToRows(testCustomer)
 	mock.ExpectBegin()
+	mock.ExpectQuery(selectCustomerSQL).WithArgs(testOrder.CustomerId, 1).WillReturnRows(customerRows)
 	mock.ExpectExec(updateProductSQL).WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectQuery(creatSQL).WillReturnRows(newRows)
+	mock.ExpectQuery(creatSQL).WillReturnRows(orderRows)
 	mock.ExpectCommit()
 
 	w := httptest.NewRecorder()
@@ -246,15 +255,51 @@ func TestCreatOrderMissingProduct(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestCreatOrderProductCustomerNotFound(t *testing.T) {
+	sqlDB, _, mock := util.DbMock(t)
+	defer sqlDB.Close()
+	handlerCtx := HandlerContext{}
+	handlerCtx.InitialHandlerContext(dal.Q, mockPayment, "")
+
+	selectCustomerSQL := `^SELECT \* FROM \"customers\" WHERE \"customers\"\.\"id\" \= .* .* LIMIT .*`
+	updateProductSQL := "UPDATE \"products\" SET .+"
+	creatSQL := "INSERT INTO \"orders\" .+ VALUES .+"
+	orderRows, _ := util.ObjectToRows(testOrder)
+	//customerRows, _ := util.ObjectToRows(testCustomer)
+	mock.ExpectBegin()
+	mock.ExpectQuery(selectCustomerSQL).WithArgs(testOrder.CustomerId, 1).WillReturnError(gorm.ErrRecordNotFound)
+	mock.ExpectExec(updateProductSQL).WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).WillReturnError(gorm.ErrRecordNotFound)
+	mock.ExpectQuery(creatSQL).WillReturnRows(orderRows)
+	mock.ExpectCommit()
+
+	w := httptest.NewRecorder()
+	reqBody, _ := json.Marshal(CreateOrderRequest{
+		CustomerId: testOrder.CustomerId,
+		ProductId:  testOrder.ProductId,
+	})
+	r := httptest.NewRequest(http.MethodPost, "http://localhosts", bytes.NewBuffer(reqBody))
+	handlerCtx.CreateOrder(w, r)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, constants.CUSTOMER_NOT_FOUND, strings.TrimSpace(w.Body.String()))
+}
+
 func TestCreatOrderProductNotAvailable(t *testing.T) {
 	sqlDB, _, mock := util.DbMock(t)
 	defer sqlDB.Close()
 	handlerCtx := HandlerContext{}
 	handlerCtx.InitialHandlerContext(dal.Q, mockPayment, "")
 
+	selectCustomerSQL := `^SELECT \* FROM \"customers\" WHERE \"customers\"\.\"id\" \= .* .* LIMIT .*`
 	updateProductSQL := "UPDATE \"products\" SET .+"
+	creatSQL := "INSERT INTO \"orders\" .+ VALUES .+"
+	orderRows, _ := util.ObjectToRows(testOrder)
+	customerRows, _ := util.ObjectToRows(testCustomer)
 	mock.ExpectBegin()
+	mock.ExpectQuery(selectCustomerSQL).WithArgs(testOrder.CustomerId, 1).WillReturnRows(customerRows)
 	mock.ExpectExec(updateProductSQL).WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).WillReturnError(gorm.ErrRecordNotFound)
+	mock.ExpectQuery(creatSQL).WillReturnRows(orderRows)
+	mock.ExpectCommit()
 
 	w := httptest.NewRecorder()
 	reqBody, _ := json.Marshal(CreateOrderRequest{
@@ -274,11 +319,16 @@ func TestCreatOrderInsertFailure(t *testing.T) {
 	handlerCtx := HandlerContext{}
 	handlerCtx.InitialHandlerContext(dal.Q, mockPayment, "")
 
+	selectCustomerSQL := `^SELECT \* FROM \"customers\" WHERE \"customers\"\.\"id\" \= .* .* LIMIT .*`
 	updateProductSQL := "UPDATE \"products\" SET .+"
 	creatSQL := "INSERT INTO \"orders\" .+ VALUES .+"
+	//orderRows, _ := util.ObjectToRows(testOrder)
+	customerRows, _ := util.ObjectToRows(testCustomer)
 	mock.ExpectBegin()
+	mock.ExpectQuery(selectCustomerSQL).WithArgs(testOrder.CustomerId, 1).WillReturnRows(customerRows)
 	mock.ExpectExec(updateProductSQL).WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery(creatSQL).WillReturnError(gorm.ErrInvalidDB)
+	mock.ExpectCommit()
 
 	w := httptest.NewRecorder()
 	reqBody, _ := json.Marshal(CreateOrderRequest{

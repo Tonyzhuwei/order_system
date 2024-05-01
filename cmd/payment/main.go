@@ -49,5 +49,5 @@ func main() {
 	go paymentCtx.ConsumePaymentMQ()
 
 	http.HandleFunc("/payment/new_payment", paymentCtx.PublishPaymentMQ)
-	log.Fatal(http.ListenAndServe("0.0.0.0:8089", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", serverConfig.Payment_port), nil))
 }

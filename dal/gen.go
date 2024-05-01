@@ -19,6 +19,7 @@ var (
 	Q        = new(Query)
 	Customer *customer
 	Order    *order
+	Payment  *payment
 	Product  *product
 )
 
@@ -26,6 +27,7 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	*Q = *Use(db, opts...)
 	Customer = &Q.Customer
 	Order = &Q.Order
+	Payment = &Q.Payment
 	Product = &Q.Product
 }
 
@@ -34,6 +36,7 @@ func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 		db:       db,
 		Customer: newCustomer(db, opts...),
 		Order:    newOrder(db, opts...),
+		Payment:  newPayment(db, opts...),
 		Product:  newProduct(db, opts...),
 	}
 }
@@ -43,6 +46,7 @@ type Query struct {
 
 	Customer customer
 	Order    order
+	Payment  payment
 	Product  product
 }
 
@@ -53,6 +57,7 @@ func (q *Query) clone(db *gorm.DB) *Query {
 		db:       db,
 		Customer: q.Customer.clone(db),
 		Order:    q.Order.clone(db),
+		Payment:  q.Payment.clone(db),
 		Product:  q.Product.clone(db),
 	}
 }
@@ -70,6 +75,7 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 		db:       db,
 		Customer: q.Customer.replaceDB(db),
 		Order:    q.Order.replaceDB(db),
+		Payment:  q.Payment.replaceDB(db),
 		Product:  q.Product.replaceDB(db),
 	}
 }
@@ -77,6 +83,7 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 type queryCtx struct {
 	Customer ICustomerDo
 	Order    IOrderDo
+	Payment  IPaymentDo
 	Product  IProductDo
 }
 
@@ -84,6 +91,7 @@ func (q *Query) WithContext(ctx context.Context) *queryCtx {
 	return &queryCtx{
 		Customer: q.Customer.WithContext(ctx),
 		Order:    q.Order.WithContext(ctx),
+		Payment:  q.Payment.WithContext(ctx),
 		Product:  q.Product.WithContext(ctx),
 	}
 }

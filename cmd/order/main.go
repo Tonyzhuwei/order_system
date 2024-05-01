@@ -44,7 +44,7 @@ func main() {
 	productCtx := product.HandlerContext{}
 	productCtx.InitialHandlerContext(dal.Q)
 	orderCtx := order.HandlerContext{}
-	orderCtx.InitialHandlerContext(dal.Q, order.CallPaymentApi, serverConfig.Payment_message_queue_url)
+	orderCtx.InitialHandlerContext(dal.Q, orderCtx.CallPaymentApi, serverConfig.Payment_message_queue_url)
 
 	// Execute orders
 	go orderCtx.ScanPendingOrders()
@@ -60,5 +60,5 @@ func main() {
 	http.HandleFunc("/order/query_order", orderCtx.QueryOrder)
 	http.HandleFunc("/order/payment_callback", orderCtx.PaymentCallBack)
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:8088", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", serverConfig.Order_port), nil))
 }

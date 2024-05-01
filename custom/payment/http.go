@@ -12,6 +12,7 @@ import (
 	"order_system/custom/util"
 	"order_system/dal"
 	"order_system/model"
+	"strings"
 )
 
 type PaymentMethod func(*model.Order) error
@@ -71,7 +72,7 @@ func (ctx *HandlerContext) PublishPaymentMQ(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	rlog.Infof("Got a new payment, OrderId=%d, Amout=%f", orderInfo.ID, orderInfo.Amount)
+	rlog.Infof("Got a new payment, OrderId=%d, Amout=%.2f", orderInfo.ID, orderInfo.Amount)
 	ctx.mq.Enqueue(&orderInfo)
 
 	w.WriteHeader(http.StatusOK)
@@ -91,36 +92,93 @@ func (ctx *HandlerContext) ConsumePaymentMQ() {
 }
 
 // Starting a new payment
-func (ctx *HandlerContext) startNewPayment(newOrder *model.Order) {
+func (ctx *HandlerContext) startNewPayment(newOrder *model.Order) error {
+	// Validate Order
+	if newOrder.ID <= 0 {
+		return errors.New(fmt.Sprintf("Order ID [%d] is invalid", newOrder.ID))
+	}
+	if newOrder.Amount < 0 {
+		return errors.New(fmt.Sprintf("Order Amount [%.2f] is invalid", newOrder.Amount))
+	}
+	// Create new payment
+	newPayment := model.Payment{
+		OrderId:         newOrder.ID,
+		Amount:          newOrder.Amount,
+		State:           constants.PAYMENT_STATE_CREATED,
+		IsNotifiedOrder: false,
+	}
+	paymentTable := ctx.db.Payment
+	errDb := paymentTable.Create(&newPayment)
+	if errDb != nil {
+		return errors.New("Failed to create payment in DB with Error: " + errDb.Error())
+	}
+	rlog.Infof("Payment was created, ID=%d,OrderId=%d,Amount=%.2f", newPayment.ID, newPayment.OrderId, newPayment.Amount)
+
+	errArray := make([]string, 0)
+	// Process Payment
 	rlog.Info("Starting process payment.")
 	err := ctx.paymentMethod(newOrder)
-	// Set payment failed
 	if err != nil {
-		rlog.Info("Process payment failed.")
-
+		errInfo := err.Error()
+		errArray = append(errArray, errInfo)
+		newPayment.State = constants.PAYMENT_STATE_FAILED
+		newPayment.PaymentResult = &errInfo
+		rlog.Error("Process payment failed: " + errInfo)
 	} else {
-		rlog.Info("Payment completed.")
-
+		newPayment.State = constants.PAYMENT_STATE_SUCCESS
+		newPayment.PaymentResult = util.GetStringPtr("Succeed")
 	}
+
 	// Notify Order system
-	rlog.Info("Notify order system")
-	ctx.notifyOrderSystem(&model.Payment{
+	err = ctx.notifyOrderSystem(&model.Payment{
 		OrderId: newOrder.ID,
-		State:   constants.PAYMENT_STATE_SUCCESS,
+		State:   newPayment.State,
 	})
+	newPayment.IsNotifiedOrder = true
+	if err != nil {
+		newPayment.IsNotifiedOrder = false
+		rlog.Errorf("Notify Payment(PaymentId=%d,OrderId=%d) result to Order System failed due to: %s", newPayment.ID, newPayment.OrderId, err.Error())
+		errArray = append(errArray, err.Error())
+	}
+
+	// Update payment result to DB
+	updateResult, err := paymentTable.Where(paymentTable.ID.Eq(newPayment.ID)).Updates(newPayment)
+	if err != nil || updateResult.RowsAffected == 0 {
+		errInfo := "Update payment state failed"
+		if err != nil {
+			errInfo += " with error: " + err.Error()
+		}
+		errArray = append(errArray, errInfo)
+		rlog.Error(errInfo)
+	} else {
+		rlog.Infof("Payment(ID=%d) state was update to %d", newPayment.ID, newPayment.State)
+	}
+
+	if len(errArray) > 0 {
+		errInfo := strings.Join(errArray, "\n")
+		return errors.New(errInfo)
+	}
+	return nil
+
 }
 
 // ProcessPaymentMethod Process payment, will be mocked in unit test cases
 func (ctx *HandlerContext) ProcessPaymentMethod(newOrder *model.Order) error {
-	// create new payment
-
-	// start operation
+	// Call bank or 3rd party payment service to process payment.
+	// Assume always success, only failure when exceed payment limit
+	if newOrder.Amount > 1000 {
+		return errors.New(constants.EXCEED_PAYMENT_LIMIT)
+	}
 
 	return nil
 }
 
 // Notify payment result to Order system
-func (ctx *HandlerContext) notifyOrderSystem(payment *model.Payment) {
+func (ctx *HandlerContext) notifyOrderSystem(payment *model.Payment) error {
+	if payment == nil {
+		return errors.New("Payment cannot be nil.")
+	}
+
 	reqObj := PaymentCallBackRequest{
 		OrderId:       payment.OrderId,
 		PaymentDetail: *payment,
@@ -128,9 +186,12 @@ func (ctx *HandlerContext) notifyOrderSystem(payment *model.Payment) {
 
 	err := ctx.OrderCallbackMethod(reqObj)
 	if err != nil {
-		rlog.Error("Call order payment call back API failed with err: ", err.Error())
+		rlog.Error("Call Order payment callback API failed with err: ", err.Error())
+	} else {
+		rlog.Infof("Call Order Payment callback API succeed.")
 	}
-	return
+
+	return err
 }
 
 // CallPaymentCallbackAPI call order system's paymentCallback api, will be mocked in unit test cases
