@@ -67,7 +67,6 @@ func (ctx *HandlerContext) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	newOrder := model.Order{
 		CustomerId: req.CustomerId,
 		ProductId:  req.ProductId,
-		Amount:     100,
 		State:      ORDER_STATE_CREATED,
 	}
 	errDb := ctx.db.Transaction(func(tx *dal.Query) error {
@@ -78,10 +77,13 @@ func (ctx *HandlerContext) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Update Product
-		result, errTx := tx.Product.Where(tx.Product.ID.Eq(req.ProductId), tx.Product.IsAvailable.Is(true)).Update(tx.Product.IsAvailable, false)
-		if errTx != nil || result.RowsAffected == 0 {
+		updatedProducts := make([]model.Product, 0)
+		result, errTx := tx.Product.Returning(&updatedProducts, "price").Where(tx.Product.ID.Eq(req.ProductId), tx.Product.IsAvailable.Is(true)).Update(tx.Product.IsAvailable, false)
+		if errTx != nil || result.RowsAffected == 0 || len(updatedProducts) == 0 {
 			return errors.New(constants.PRODUCT_NOT_AVAILABLE)
 		}
+		newOrder.Amount = updatedProducts[0].Price
+
 		// Create new order
 		errTx = tx.Order.Create(&newOrder)
 		if errTx != nil {
@@ -102,7 +104,8 @@ func (ctx *HandlerContext) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte("create order success."))
+	respBody, _ := json.Marshal(newOrder)
+	w.Write(respBody)
 }
 
 // Fetch order detail by order id

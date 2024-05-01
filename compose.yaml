@@ -1,44 +1,45 @@
 version: '3'
 
 services:
+
   order_api:
-    image: golang:1.21-alpine
-    working_dir: ./cmd/order
-    command: go run main.go
+    image: my-order-app
+    working_dir: /usr/src/app
+    command: order_app
     ports:
-      - 127.0.0.1:8088:8088
+      - 0.0.0.0:8088:8088
     networks:
-      - backend
+      - my-backend
+    depends_on:
+      - postgres_db
+
   payment_api:
-      image: golang:1.21-alpine
-      working_dir: ./cmd/payment
-      command: go run main.go
+      image: my-payment-app
+      working_dir: /usr/src/app
+      command: payment_app
       ports:
-        - 127.0.0.1:8089:8089
+        - 0.0.0.0:8089:8089
       networks:
-        - backend
-#    environment:
-#        MYSQL_HOST: postgres
-#        MYSQL_USER: root
-#        MYSQL_PASSWORD: secret
-#        MYSQL_DB: todos
+        - my-backend
+      depends_on:
+        - postgres_db
 
   postgres_db:
     image: postgres
     restart: always
-    # set shared memory limit when using docker-compose
     shm_size: 128mb
-    # or set shared memory limit when deploy via swarm stack
-    #volumes:
-    #  - type: tmpfs
-    #    target: /dev/shm
-    #    tmpfs:
-    #      size: 134217728 # 128*2^20 bytes = 128Mb
     environment:
-      POSTGRES_PASSWORD: example
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: order_system
+    ports:
+      - 0.0.0.0:5433:5432
     networks:
-      - backend
-    # TODO: create default db
+      - my-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5432"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 networks:
-  backend:
+  my-backend:

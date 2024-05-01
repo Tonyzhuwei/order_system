@@ -51,11 +51,13 @@ func (ctx *HandlerContext) CreateCustomers(w http.ResponseWriter, r *http.Reques
 		http.Error(w, validationErr, http.StatusBadRequest)
 	}
 
+	createCustomers := make([]model.Customer, 0)
 	err = ctx.db.Transaction(func(tx *dal.Query) error {
 		for _, customer := range *req.Customers {
 			if errCreate := tx.Customer.Create(&customer); errCreate != nil {
 				return errors.New(customer.Name + " : " + errCreate.Error())
 			}
+			createCustomers = append(createCustomers, customer)
 		}
 		return nil
 	})
@@ -65,7 +67,8 @@ func (ctx *HandlerContext) CreateCustomers(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Create Customer Success"))
+	respBody, _ := json.Marshal(createCustomers)
+	w.Write(respBody)
 }
 
 // Query customer

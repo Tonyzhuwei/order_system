@@ -6,14 +6,14 @@ payment_port: 8089
 
 # Postgres' configuration, Order system and Payment share same DB
 postgres:
-  "host": "localhost"
+  "host": "postgres_db"
   "port": 5432
   "username": "postgres"
   "password": "password"
   "database": "order_system"
 
 # Payment system use this url to notify Oder system the payment result
-order_payment_callback_url: "http://0.0.0.0:8088/order/payment_callback"
+order_payment_callback_url: "http://order_api:8088/order/payment_callback"
 
 # Order system user this url to push new payment message to Payment's Message Queue
-payment_message_queue_url: "http://0.0.0.0:8089/payment/new_payment"
+payment_message_queue_url: "http://payment_api:8089/payment/new_payment"

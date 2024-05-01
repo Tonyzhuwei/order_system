@@ -46,11 +46,14 @@ func (ctx *HandlerContext) CreateProducts(w http.ResponseWriter, r *http.Request
 	if validationErr != "" {
 		http.Error(w, validationErr, http.StatusBadRequest)
 	}
+
+	createdProducts := make([]model.Product, 0)
 	err = ctx.db.Transaction(func(tx *dal.Query) error {
 		for _, product := range *req.Products {
 			if errCreate := tx.Product.Create(&product); errCreate != nil {
 				return errors.New(product.Name + ": " + errCreate.Error())
 			}
+			createdProducts = append(createdProducts, product)
 		}
 		return nil
 	})
@@ -60,7 +63,8 @@ func (ctx *HandlerContext) CreateProducts(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Create Products Success"))
+	respBody, err := json.Marshal(createdProducts)
+	w.Write(respBody)
 }
 
 // SetProductsInventory Set Product inventory
