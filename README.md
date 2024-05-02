@@ -35,6 +35,13 @@ To run unit test cases, Please run following command
 go test ./...
 ```
 
+## How it works
+This sequence diagram illustrates its functionality, Following it can validate most APIs.
+![](./sequence_diagram.png)
+The Order state will change in accordance with this State Machine:
+![](./state_machine.png)
+
+
 ## Payload for API testing
 - create_customer
 ```
