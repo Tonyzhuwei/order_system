@@ -2,6 +2,7 @@ package order
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"github.com/stretchr/testify/assert"
@@ -182,7 +183,9 @@ func TestCreatOrderSuccess(t *testing.T) {
 	customerRows, _ := util.ObjectToRows(testCustomer)
 	mock.ExpectBegin()
 	mock.ExpectQuery(selectCustomerSQL).WithArgs(testOrder.CustomerId, 1).WillReturnRows(customerRows)
-	mock.ExpectExec(updateProductSQL).WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true, "price").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(updateProductSQL).
+		WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).
+		WillReturnRows(sqlmock.NewRows([]string{"price"}).AddRow(driver.Value(100.00)))
 	mock.ExpectQuery(creatSQL).WillReturnRows(orderRows)
 	mock.ExpectCommit()
 
@@ -297,7 +300,9 @@ func TestCreatOrderProductNotAvailable(t *testing.T) {
 	customerRows, _ := util.ObjectToRows(testCustomer)
 	mock.ExpectBegin()
 	mock.ExpectQuery(selectCustomerSQL).WithArgs(testOrder.CustomerId, 1).WillReturnRows(customerRows)
-	mock.ExpectExec(updateProductSQL).WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).WillReturnError(gorm.ErrRecordNotFound)
+	mock.ExpectQuery(updateProductSQL).
+		WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).
+		WillReturnError(gorm.ErrRecordNotFound)
 	mock.ExpectQuery(creatSQL).WillReturnRows(orderRows)
 	mock.ExpectCommit()
 
@@ -326,7 +331,9 @@ func TestCreatOrderInsertFailure(t *testing.T) {
 	customerRows, _ := util.ObjectToRows(testCustomer)
 	mock.ExpectBegin()
 	mock.ExpectQuery(selectCustomerSQL).WithArgs(testOrder.CustomerId, 1).WillReturnRows(customerRows)
-	mock.ExpectExec(updateProductSQL).WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(updateProductSQL).
+		WithArgs(false, sqlmock.AnyArg(), testOrder.ProductId, true).
+		WillReturnRows(sqlmock.NewRows([]string{"price"}).AddRow(driver.Value(100.00)))
 	mock.ExpectQuery(creatSQL).WillReturnError(gorm.ErrInvalidDB)
 	mock.ExpectCommit()
 
